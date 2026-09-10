@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artwork & Gallery Community</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+
+    <!-- Header -->
+    <header class="border-b border-zinc-800 bg-zinc-900/70 sticky top-0 backdrop-blur z-20">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold tracking-wide">ART GALLERY</h1>
+                <p class="text-[11px] text-zinc-400">ภาพวาด • การ์ตูน • แฟนอาร์ต • ภาพถ่าย</p>
+            </div>
+            <div id="authButtons" class="flex items-center gap-3"></div>
+        </div>
+    </header>
+
+    <!-- Main Feed -->
+    <main class="max-w-5xl mx-auto px-4 py-8">
+        <div id="galleryFeed" class="space-y-8 max-w-2xl mx-auto"></div>
+    </main>
+
+    <!-- Modal: Login -->
+    <div id="authModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm text-center">
+            <h2 class="text-lg font-bold mb-2">ยินดีต้อนรับ</h2>
+            <p class="text-xs text-zinc-400 mb-6">เข้าสู่ระบบเพื่อโพสต์ผลงานและร่วมแสดงความคิดเห็น</p>
+            
+            <button type="button" onclick="loginWithGoogle()" class="w-full flex items-center justify-center gap-3 bg-white text-zinc-800 py-2.5 px-4 rounded-xl font-semibold text-sm hover:bg-zinc-100 transition shadow-sm mb-4 active:scale-95">
+                <svg class="w-4 h-4" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                เข้าสู่ระบบด้วย Google
+            </button>
+
+            <div class="relative flex items-center justify-center my-4">
+                <span class="absolute inset-x-0 h-px bg-zinc-800"></span>
+                <span class="relative bg-zinc-900 px-3 text-[10px] text-zinc-500 uppercase">หรือใช้ Username</span>
+            </div>
+
+            <form id="simpleLoginForm" class="space-y-3 text-left">
+                <input type="text" id="simpleUsername" placeholder="ระบุชื่อผู้ใช้..." required class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-white text-white">
+                <button type="submit" class="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 py-2 rounded-lg text-xs font-semibold hover:bg-zinc-700 transition">เข้าใช้งาน</button>
+            </form>
+
+            <button type="button" onclick="closeAuthModal()" class="mt-4 text-xs text-zinc-500 hover:text-white">ยกเลิก</button>
+        </div>
+    </div>
+
+    <!-- Modal: Upload Photo จากเครื่องคอมพิวเตอร์ -->
+    <div id="uploadModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md">
+            <h2 class="text-lg font-bold mb-4">อัปโหลดผลงานรูปภาพ</h2>
+            <form id="uploadForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-zinc-400 mb-1">ชื่อรูปภาพ / แคปชั่น</label>
+                    <input type="text" id="uploadTitle" required placeholder="เช่น ภาพสเก็ตช์ตัวละคร, วิวยามเย็น" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-white text-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs text-zinc-400 mb-1">หมวดหมู่ผลงาน</label>
+                    <select id="uploadCategory" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-white text-white">
+                        <option value="รูปวาด / ภาพประกอบ">รูปวาด / ภาพประกอบ</option>
+                        <option value="การ์ตูน / อนิเมะ">การ์ตูน / อนิเมะ</option>
+                        <option value="แฟนอาร์ต (Fanart)">แฟนอาร์ต (Fanart)</option>
+                        <option value="ภาพถ่ายวิว / ธรรมชาติ">ภาพถ่ายวิว / ธรรมชาติ</option>
+                        <option value="งาน 3D / กราฟิก">งาน 3D / กราฟิก</option>
+                        <option value="ทั่วไป">ทั่วไป</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-zinc-400 mb-1">เลือกไฟล์รูปภาพจากเครื่อง</label>
+                    <input type="file" id="uploadFileInput" accept="image/*" required class="w-full text-xs text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700 cursor-pointer">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('uploadModal').classList.add('hidden')" class="px-3 py-1.5 text-xs text-zinc-400 hover:text-white">ยกเลิก</button>
+                    <button type="submit" id="submitBtn" class="px-4 py-1.5 text-xs bg-white text-zinc-950 font-bold rounded-lg hover:bg-zinc-200">โพสต์ผลงาน</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = JSON.parse(localStorage.getItem('user')) || null;
+
+        function updateAuthUI() {
+            const container = document.getElementById('authButtons');
+            if (currentUser) {
+                container.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <img src="${currentUser.avatar}" class="w-7 h-7 rounded-full border border-zinc-700 object-cover">
+                        <span class="text-xs text-zinc-200 font-semibold">${currentUser.username}</span>
+                    </div>
+                    <button onclick="document.getElementById('uploadModal').classList.remove('hidden')" class="bg-white text-zinc-950 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-zinc-200">+ โพสต์ภาพ</button>
+                    <button onclick="logout()" class="text-xs text-zinc-400 hover:text-red-400">ออกจากระบบ</button>
+                `;
+            } else {
+                container.innerHTML = `
+                    <button onclick="openAuthModal()" class="bg-white text-zinc-950 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-zinc-200">เข้าสู่ระบบ</button>
+                `;
+            }
+        }
+
+        function openAuthModal() {
+            document.getElementById('authModal').classList.remove('hidden');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('user');
+            updateAuthUI();
+            fetchFeed();
+        }
+
+        function loginWithGoogle() {
+            currentUser = {
+                id: Date.now(),
+                username: "Google User",
+                avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100"
+            };
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            closeAuthModal();
+            updateAuthUI();
+            fetchFeed();
+        }
+
+        document.getElementById('simpleLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('simpleUsername').value.trim();
+            currentUser = {
+                id: Date.now(),
+                username: username,
+                avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`
+            };
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            closeAuthModal();
+            updateAuthUI();
+            fetchFeed();
+        });
+
+        // อัปโหลดไฟล์รูปภาพแบบ FormData
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser) return alert('กรุณาเข้าสู่ระบบก่อน');
+
+            const fileInput = document.getElementById('uploadFileInput');
+            if (fileInput.files.length === 0) return alert('กรุณาเลือกไฟล์ภาพ');
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.innerText = 'กำลังอัปโหลด...';
+            submitBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('title', document.getElementById('uploadTitle').value);
+            formData.append('category', document.getElementById('uploadCategory').value);
+            formData.append('image_file', fileInput.files[0]);
+            formData.append('author', currentUser.username);
+            formData.append('avatar', currentUser.avatar);
+
+            try {
+                const res = await fetch('/api/artworks', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (res.ok) {
+                    document.getElementById('uploadModal').classList.add('hidden');
+                    document.getElementById('uploadForm').reset();
+                    fetchFeed();
+                } else {
+                    alert('อัปโหลดล้มเหลว');
+                }
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+            } finally {
+                submitBtn.innerText = 'โพสต์ผลงาน';
+                submitBtn.disabled = false;
+            }
+        });
+
+        // โหลดฟีดรูปภาพ
+        async function fetchFeed() {
+            try {
+                const res = await fetch('/api/artworks');
+                const data = await res.json();
+                const feed = document.getElementById('galleryFeed');
+
+                if (!data || data.length === 0) {
+                    feed.innerHTML = `<p class="text-zinc-500 text-center py-12">ยังไม่มีผลงานรูปภาพ</p>`;
+                    return;
+                }
+
+                feed.innerHTML = data.map(item => `
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+                        <div class="p-4 flex items-center justify-between border-b border-zinc-800/60">
+                            <div class="flex items-center gap-3">
+                                <img src="${item.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + item.author}" class="w-8 h-8 rounded-full border border-zinc-700 object-cover">
+                                <div>
+                                    <h3 class="font-bold text-sm text-zinc-100">${item.title}</h3>
+                                    <p class="text-xs text-zinc-400">โดย <b>@${item.author}</b> • <span class="text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded-full text-[10px]">${item.category || 'ทั่วไป'}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-black flex items-center justify-center min-h-[300px]">
+                            <img src="${item.image_url}" alt="${item.title}" class="w-full max-h-[600px] object-contain mx-auto">
+                        </div>
+
+                        <!-- กล่องคอมเมนต์ -->
+                        <div class="p-4 border-t border-zinc-800/60 bg-zinc-900/30">
+                            <div class="space-y-2 mb-4">
+                                ${item.comments && item.comments.length > 0 ? item.comments.map(c => `
+                                    <div class="text-xs leading-relaxed">
+                                        <span class="font-bold text-zinc-300">@${c.username}</span>: 
+                                        <span class="text-zinc-400">${c.text}</span>
+                                    </div>
+                                `).join('') : '<p class="text-xs text-zinc-500">ยังไม่มีความคิดเห็น มาเป็นคนแรกที่คอมเมนต์!</p>'}
+                            </div>
+
+                            ${currentUser ? `
+                                <form onsubmit="postComment(event, ${item.artwork_id})" class="flex gap-2">
+                                    <input type="text" id="comment-input-${item.artwork_id}" required placeholder="แสดงความคิดเห็นในชื่อ @${currentUser.username}..." class="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-500">
+                                    <button type="submit" class="bg-zinc-800 text-zinc-200 border border-zinc-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-zinc-700 transition">ส่ง</button>
+                                </form>
+                            ` : `
+                                <p class="text-xs text-zinc-500 bg-zinc-800/40 p-2 rounded-lg text-center">
+                                    <a href="#" onclick="openAuthModal()" class="text-white underline">เข้าสู่ระบบ</a> เพื่อแสดงความคิดเห็น
+                                </p>
+                            `}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Fetch feed error:', err);
+            }
+        }
+
+        async function postComment(e, artworkId) {
+            e.preventDefault();
+            const input = document.getElementById(`comment-input-${artworkId}`);
+            const text = input.value.trim();
+            if (!text) return;
+
+            await fetch(`/api/artworks/${artworkId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: currentUser.username,
+                    text
+                })
+            });
+
+            input.value = '';
+            fetchFeed();
+        }
+
+        updateAuthUI();
+        fetchFeed();
+    </script>
+</body>
+</html>
