@@ -1,208 +1,261 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-const uploadDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_KEY
+);
+
+const upload = multer({ storage: multer.memoryStorage() });
+const BUCKET = 'uploads';
+
+function getExt(filename) {
+    const i = filename.lastIndexOf('.');
+    return i !== -1 ? filename.slice(i) : '';
 }
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
-const upload = multer({ storage });
+// อัปโหลดไฟล์ขึ้น Supabase Storage แล้วคืน public URL
+async function uploadToStorage(file, folder) {
+    const fileName = `${folder}/${Date.now()}-${Math.round(Math.random() * 1e9)}${getExt(file.originalname)}`;
+    const { error } = await supabase.storage.from(BUCKET).upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+    });
+    if (error) throw error;
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
+    return { url: data.publicUrl };
+}
 
-let users = [];
-let artworks = [];
+// ดึง path ของไฟล์ใน storage จาก public URL เพื่อใช้ลบไฟล์
+function extractStoragePath(url) {
+    if (!url || !url.includes(`/storage/v1/object/public/${BUCKET}/`)) return null;
+    return url.split(`/storage/v1/object/public/${BUCKET}/`)[1];
+}
 
 // สมัครสมาชิก
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบ' });
 
-    const exists = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-    if (exists) return res.status(400).json({ message: 'ชื่อผู้ใช้นี้มีคนใช้แล้ว' });
+    const { data: existing } = await supabase
+        .from('users')
+        .select('id')
+        .ilike('username', username)
+        .maybeSingle();
 
-    const newUser = {
-        user_id: 'usr_' + Date.now(),
-        username: username.trim(),
-        password: password.trim(),
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${username.trim()}`
-    };
-    users.push(newUser);
-    res.json({ message: 'Success', user: newUser });
+    if (existing) return res.status(400).json({ message: 'ชื่อผู้ใช้นี้มีคนใช้แล้ว' });
+
+    const { data, error } = await supabase
+        .from('users')
+        .insert({
+            username: username.trim(),
+            password: password.trim(),
+            avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${username.trim()}`
+        })
+        .select()
+        .single();
+
+        if (error) return res.status(500).json({ message: 'สมัครสมาชิกไม่สำเร็จ' });
+    data.user_id = data.id;
+    res.json({ message: 'Success', user: data });
 });
 
 // เข้าสู่ระบบ
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
-    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
-    if (!user) return res.status(401).json({ message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
 
-    res.json({ message: 'Success', user });
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .ilike('username', username)
+        .eq('password', password)
+        .maybeSingle();
+
+        if (error || !data) return res.status(401).json({ message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+    data.user_id = data.id;
+    res.json({ message: 'Success', user: data });
 });
 
 // จำลอง Google Login
-app.post('/api/google-login', (req, res) => {
+app.post('/api/google-login', async (req, res) => {
     const { name, picture } = req.body;
     const username = name || 'Google User';
-    let user = users.find(u => u.username === username);
+
+    let { data: user } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .maybeSingle();
+
     if (!user) {
-        user = {
-            user_id: 'usr_' + Date.now(),
-            username,
-            password: 'google_user',
-            avatar: picture || `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`
-        };
-        users.push(user);
+        const { data, error } = await supabase
+            .from('users')
+            .insert({
+                username,
+                password: 'google_user',
+                avatar: picture || `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`
+            })
+            .select()
+            .single();
+                if (error) return res.status(500).json({ message: 'เข้าสู่ระบบล้มเหลว' });
+        user = data;
     }
+
+    user.user_id = user.id;
     res.json({ message: 'Success', user });
 });
 
-// แก้ไขโปรไฟล์ (เปลี่ยนชื่อ, รหัสผ่าน, รูป Avatar)
-app.put('/api/profile', upload.single('avatar_file'), (req, res) => {
+// แก้ไขโปรไฟล์ (การเปลี่ยนชื่อในโพสต์/คอมเมนต์เก่าให้อัตโนมัติ ทำโดย TRIGGER ในฐานข้อมูล)
+app.put('/api/profile', upload.single('avatar_file'), async (req, res) => {
     const { user_id, new_username, new_password } = req.body;
-    
-    let user = users.find(u => String(u.user_id) === String(user_id));
-    if (!user) {
-        // หากไม่เจอผู้ใช้ ให้สร้างหรือผูกบัญชีใหม่ทันทีเพื่อไม่ให้ค้าง
-        user = {
-            user_id: String(user_id),
-            username: new_username || 'User',
-            password: new_password || '123456',
-            avatar: req.file ? `/uploads/${req.file.filename}` : `https://api.dicebear.com/7.x/bottts/svg?seed=${new_username || 'user'}`
-        };
-        users.push(user);
-    } else {
-        if (new_username && new_username.trim() !== '') {
-            const oldName = user.username;
-            user.username = new_username.trim();
-            // อัปเดตชื่อในโพสต์และคอมเมนต์เก่าทั้งหมด
-            artworks.forEach(art => {
-                if (String(art.user_id) === String(user.user_id)) art.author = user.username;
-                art.comments.forEach(c => {
-                    if (c.username === oldName) c.username = user.username;
-                });
-            });
-        }
-        if (new_password && new_password.trim() !== '') {
-            user.password = new_password.trim();
-        }
-        if (req.file) {
-            user.avatar = `/uploads/${req.file.filename}`;
-            artworks.forEach(art => {
-                if (String(art.user_id) === String(user.user_id)) art.avatar = user.avatar;
-            });
-        }
+
+    const updates = {};
+    if (new_username && new_username.trim() !== '') updates.username = new_username.trim();
+    if (new_password && new_password.trim() !== '') updates.password = new_password.trim();
+
+    if (req.file) {
+        const { url } = await uploadToStorage(req.file, 'avatars');
+        updates.avatar = url;
     }
 
-    res.json({ message: 'Profile updated', user });
+    const { data, error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', user_id)
+        .select()
+        .single();
+
+        if (error) return res.status(500).json({ message: 'บันทึกข้อมูลล้มเหลว' });
+    data.user_id = data.id;
+    res.json({ message: 'Profile updated', user: data });
 });
 
-// ดึงภาพผลงานทั้งหมด
-app.get('/api/artworks', (req, res) => {
-    res.json(artworks);
+// ดึงภาพผลงานทั้งหมด (พร้อมคอมเมนต์)
+app.get('/api/artworks', async (req, res) => {
+    const { data, error } = await supabase
+        .from('artworks')
+        .select('*, comments(*)')
+        .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ message: 'ดึงข้อมูลล้มเหลว' });
+
+    data.forEach(a => {
+        a.artwork_id = a.id;
+        a.comments.sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
+    });
+
+    res.json(data);
+});
+
+// นับจำนวนคอมเมนต์ของโพสต์ (เรียกใช้ FUNCTION ในฐานข้อมูล)
+app.get('/api/artworks/:id/comment-count', async (req, res) => {
+    const { data, error } = await supabase.rpc('get_comment_count', { p_artwork_id: req.params.id });
+    if (error) return res.status(500).json({ message: 'นับคอมเมนต์ล้มเหลว' });
+    res.json({ count: data });
 });
 
 // โพสต์ผลงานใหม่
-app.post('/api/artworks', upload.single('image_file'), (req, res) => {
+app.post('/api/artworks', upload.single('image_file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'กรุณาเลือกไฟล์ภาพ' });
 
     const { title, category, user_id, author, avatar } = req.body;
 
-    const newArt = {
-        artwork_id: String(Date.now()),
-        title: title || 'Untitled',
-        image_url: `/uploads/${req.file.filename}`,
-        category: category || 'ทั่วไป',
-        user_id: String(user_id),
-        author: author || 'User',
-        avatar: avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${author || 'user'}`,
-        comments: []
-    };
+    try {
+        const { url } = await uploadToStorage(req.file, 'artworks');
 
-    artworks.unshift(newArt);
-    res.json({ message: 'Success', artwork: newArt });
+        const { data, error } = await supabase
+            .from('artworks')
+            .insert({
+                title: title || 'Untitled',
+                image_url: url,
+                category: category || 'ทั่วไป',
+                user_id,
+                author: author || 'User',
+                avatar: avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${author || 'user'}`
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        data.artwork_id = data.id;
+        data.comments = [];
+        res.json({ message: 'Success', artwork: data });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'อัปโหลดล้มเหลว' });
+    }
 });
 
-// ลบรูปภาพ
-app.delete('/api/artworks/:id', (req, res) => {
-    const artworkId = String(req.params.id);
-    const requesterId = req.body && req.body.user_id ? String(req.body.user_id) : (req.query.user_id ? String(req.query.user_id) : null);
+// ลบโพสต์ (เรียกใช้ PROCEDURE delete_artwork_proc ซึ่งเช็คสิทธิ์เจ้าของในฐานข้อมูลเอง)
+app.delete('/api/artworks/:id', async (req, res) => {
+    const artworkId = req.params.id;
+    const requesterId = req.body.user_id;
 
-    const index = artworks.findIndex(a => String(a.artwork_id) === artworkId);
-    if (index === -1) {
-        return res.status(404).json({ message: 'ไม่พบโพสต์นี้' });
-    }
+    if (!requesterId) return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ลบโพสต์นี้' });
 
-    const artwork = artworks[index];
+    const { data: artwork } = await supabase
+        .from('artworks')
+        .select('image_url')
+        .eq('id', artworkId)
+        .maybeSingle();
 
-    // อนุญาตให้ลบได้เฉพาะเจ้าของโพสต์เท่านั้น
-    if (!requesterId || String(artwork.user_id) !== requesterId) {
+            const { error } = await supabase.rpc('delete_artwork_fn', {
+        p_artwork_id: artworkId,
+        p_user_id: requesterId
+    });
+
+    if (error) {
+        console.error('DELETE ARTWORK ERROR:', error);
         return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ลบโพสต์นี้' });
     }
 
-    // ลบไฟล์รูปภาพออกจากเครื่องจริงด้วย
-    if (artwork.image_url) {
-        const filePath = path.join(__dirname, 'public', artwork.image_url);
-        fs.unlink(filePath, (err) => {
-            if (err && err.code !== 'ENOENT') {
-                console.error('ลบไฟล์รูปภาพไม่สำเร็จ:', err);
-            }
-        });
+    if (artwork) {
+        const path = extractStoragePath(artwork.image_url);
+        if (path) await supabase.storage.from(BUCKET).remove([path]);
     }
 
-    artworks.splice(index, 1);
     res.json({ message: 'Deleted successfully' });
 });
 
-// คอมเมนต์ (ผูกชื่อ Username ถูกต้อง 100% ไม่ขึ้น undefined)
-app.post('/api/artworks/:id/comments', (req, res) => {
-    const artworkId = String(req.params.id);
+// คอมเมนต์
+app.post('/api/artworks/:id/comments', async (req, res) => {
+    const artworkId = req.params.id;
     const { username, text, user_id } = req.body;
 
-    const art = artworks.find(a => String(a.artwork_id) === artworkId);
-    if (!art) return res.status(404).json({ message: 'ไม่พบรูปภาพนี้' });
+    const { data, error } = await supabase
+        .from('comments')
+        .insert({
+            artwork_id: artworkId,
+            user_id: user_id || null,
+            username: username || 'User',
+            text: text.trim()
+        })
+        .select()
+        .single();
 
-    const newComment = {
-        id: Date.now(),
-        user_id: user_id ? String(user_id) : null,
-        username: username || 'User',
-        text: text.trim()
-    };
-    art.comments.push(newComment);
-    res.json({ message: 'Success', comment: newComment });
+    if (error) return res.status(404).json({ message: 'ไม่พบรูปภาพนี้' });
+    res.json({ message: 'Success', comment: data });
 });
 
-// ลบคอมเมนต์ (เฉพาะเจ้าของคอมเมนต์เท่านั้น)
-app.delete('/api/artworks/:artId/comments/:commentId', (req, res) => {
-    const artworkId = String(req.params.artId);
-    const commentId = String(req.params.commentId);
-    const requesterId = req.body && req.body.user_id ? String(req.body.user_id) : (req.query.user_id ? String(req.query.user_id) : null);
+// ลบคอมเมนต์ (เรียกใช้ PROCEDURE delete_comment_proc)
+app.delete('/api/artworks/:artId/comments/:commentId', async (req, res) => {
+    const requesterId = req.body.user_id;
+    if (!requesterId) return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ลบคอมเมนต์นี้' });
 
-    const art = artworks.find(a => String(a.artwork_id) === artworkId);
-    if (!art) return res.status(404).json({ message: 'ไม่พบโพสต์นี้' });
+        const { error } = await supabase.rpc('delete_comment_fn', {
+        p_comment_id: req.params.commentId,
+        p_user_id: requesterId
+    });
 
-    const commentIndex = art.comments.findIndex(c => String(c.id) === commentId);
-    if (commentIndex === -1) return res.status(404).json({ message: 'ไม่พบคอมเมนต์นี้' });
-
-    const comment = art.comments[commentIndex];
-    if (!requesterId || String(comment.user_id) !== requesterId) {
-        return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ลบคอมเมนต์นี้' });
-    }
-
-    art.comments.splice(commentIndex, 1);
+    if (error) return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ลบคอมเมนต์นี้' });
     res.json({ message: 'Comment deleted' });
 });
 
