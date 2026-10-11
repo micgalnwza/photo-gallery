@@ -322,6 +322,12 @@ app.delete('/api/artworks/:artId/comments/:commentId', async (req, res) => {
     if (error) return res.status(403).json({ message: 'คุณไม่มีสิทธิ์ลบคอมเมนต์นี้' });
     res.json({ message: 'Comment deleted' });
 });
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
