@@ -39,6 +39,9 @@ function extractStoragePath(url) {
     if (!url || !url.includes(`/storage/v1/object/public/${BUCKET}/`)) return null;
     return url.split(`/storage/v1/object/public/${BUCKET}/`)[1];
 }
+app.get("/api", (req, res) => {
+  res.json({ message: "Backend is working" });
+});
 
 // สมัครสมาชิก (เพิ่มการดักจับและพิมพ์ Error ชัดเจน)
 app.post('/api/register', async (req, res) => {
