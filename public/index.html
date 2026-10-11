@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artwork & Gallery Community</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* สไตล์ปุ่มไลค์เพิ่มเติม */
+        .like-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .btn-like {
+            background: transparent;
+            border: 1px solid #444;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+        .btn-like:hover {
+            border-color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+        .btn-like.liked {
+            background: rgba(255, 107, 107, 0.2);
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="nav-container" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 24px;">
+            <div>
+                <h1 class="logo-title" style="margin: 0;">ART GALLERY</h1>
+                <p class="logo-sub" style="margin: 2px 0 0 0; font-size: 12px; opacity: 0.8;">ภาพวาด • การ์ตูน • แฟนอาร์ต • ภาพถ่าย</p>
+            </div>
+
+            <div id="authButtons" class="auth-box" style="display: flex; gap: 12px; align-items: center;"></div>
+        </div>
+    </header>
+
+    <!-- กล่องค้นหา และ แถบแยกหมวดหมู่ -->
+    <div class="search-section" style="max-width: 700px; margin: 25px auto 15px auto; padding: 0 16px; text-align: center;">
+        <div class="search-box" style="display: flex; gap: 8px; justify-content: center; margin-bottom: 15px;">
+            <input type="text" id="searchInput" placeholder="🔍 ค้นหาชื่อภาพ, ศิลปิน, หรือหมวดหมู่..." class="form-input" style="flex: 1; max-width: 450px; padding: 10px 14px; border-radius: 8px;">
+            <button type="button" onclick="performSearch()" class="btn-primary" style="padding: 10px 20px; border-radius: 8px; cursor: pointer;">ค้นหา</button>
+        </div>
+
+        <div class="category-filter-bar" style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+            <button type="button" onclick="filterByCategory('')" class="cat-btn active" data-category="" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #6366f1; color: white; cursor: pointer; font-size: 13px;">ทั้งหมด</button>
+            <button type="button" onclick="filterByCategory('รูปวาด / ภาพประกอบ')" class="cat-btn" data-category="รูปวาด / ภาพประกอบ" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #222; color: #ddd; cursor: pointer; font-size: 13px;">รูปวาด / ภาพประกอบ</button>
+            <button type="button" onclick="filterByCategory('การ์ตูน / อนิเมะ')" class="cat-btn" data-category="การ์ตูน / อนิเมะ" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #222; color: #ddd; cursor: pointer; font-size: 13px;">การ์ตูน / อนิเมะ</button>
+            <button type="button" onclick="filterByCategory('แฟนอาร์ต (Fanart)')" class="cat-btn" data-category="แฟนอาร์ต (Fanart)" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #222; color: #ddd; cursor: pointer; font-size: 13px;">แฟนอาร์ต</button>
+            <button type="button" onclick="filterByCategory('ภาพถ่ายวิว / ธรรมชาติ')" class="cat-btn" data-category="ภาพถ่ายวิว / ธรรมชาติ" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #222; color: #ddd; cursor: pointer; font-size: 13px;">ภาพถ่าย</button>
+            <button type="button" onclick="filterByCategory('ทั่วไป')" class="cat-btn" data-category="ทั่วไป" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #222; color: #ddd; cursor: pointer; font-size: 13px;">ทั่วไป</button>
+        </div>
+    </div>
+
+    <main class="main-content" id="galleryFeed"></main>
+
+    <!-- Modal: เข้าสู่ระบบ / สมัครสมาชิก -->
+    <div id="authModal" class="modal-overlay hidden">
+        <div class="modal-box modal-header-center">
+            <h2 id="authTitle" class="modal-title">เข้าสู่ระบบ</h2>
+            <p id="authSub" class="modal-subtitle">กรอกบัญชีผู้ใช้งานของคุณ</p>
+
+            <form id="authForm">
+                <div class="form-group">
+                    <input type="text" id="authUsername" class="form-input" placeholder="ชื่อผู้ใช้ (Username)" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="authPassword" class="form-input" placeholder="รหัสผ่าน (Password)" required>
+                </div>
+                <button type="submit" id="authSubmitBtn" class="btn-primary btn-full">เข้าสู่ระบบ</button>
+            </form>
+
+            <div class="auth-switch-text">
+                <span id="authToggleText">ยังไม่มีบัญชี?</span> 
+                <button type="button" onclick="toggleAuthMode()" class="btn-link btn-link-white" id="authToggleBtn">สมัครสมาชิก</button>
+            </div>
+            <button type="button" onclick="closeModal('authModal')" class="btn-link" style="margin-top: 10px;">ยกเลิก</button>
+        </div>
+    </div>
+
+    <!-- Modal: ตั้งค่าโปรไฟล์ -->
+    <div id="profileModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h2 class="modal-title">ตั้งค่าโปรไฟล์</h2>
+            <form id="profileForm">
+                <div class="form-group">
+                    <label class="form-label">เปลี่ยนชื่อผู้ใช้</label>
+                    <input type="text" id="editUsername" class="form-input" placeholder="ชื่อใหม่...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">เปลี่ยนรหัสผ่าน</label>
+                    <input type="password" id="editPassword" class="form-input" placeholder="รหัสผ่านใหม่...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">เปลี่ยนรูป Avatar</label>
+                    <input type="file" id="editAvatarFile" accept="image/*" class="form-input">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" onclick="closeModal('profileModal')" class="btn-link">ยกเลิก</button>
+                    <button type="submit" id="profileSaveBtn" class="btn-primary">บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: อัปโหลดภาพผลงาน -->
+    <div id="uploadModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h2 class="modal-title">อัปโหลดผลงานรูปภาพ</h2>
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label class="form-label">ชื่อรูปภาพ / คำอธิบาย</label>
+                    <input type="text" id="uploadTitle" class="form-input" placeholder="เช่น สเก็ตช์ตัวละคร, ภาพวิว" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">หมวดหมู่ผลงาน</label>
+                    <select id="uploadCategory" class="form-select">
+                        <option value="รูปวาด / ภาพประกอบ">รูปวาด / ภาพประกอบ</option>
+                        <option value="การ์ตูน / อนิเมะ">การ์ตูน / อนิเมะ</option>
+                        <option value="แฟนอาร์ต (Fanart)">แฟนอาร์ต (Fanart)</option>
+                        <option value="ภาพถ่ายวิว / ธรรมชาติ">ภาพถ่ายวิว / ธรรมชาติ</option>
+                        <option value="ทั่วไป">ทั่วไป</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">เลือกรูปภาพจากเครื่อง</label>
+                    <input type="file" id="uploadFileInput" accept="image/*" class="form-input" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" onclick="closeModal('uploadModal')" class="btn-link">ยกเลิก</button>
+                    <button type="submit" id="submitBtn" class="btn-primary">โพสต์ผลงาน</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = JSON.parse(localStorage.getItem('user')) || null;
+        let isRegister = false;
+        let currentCategory = '';
+
+        function updateAuthUI() {
+            const container = document.getElementById('authButtons');
+            if (currentUser) {
+                const isAdmin = currentUser.role === 'admin';
+                container.innerHTML = `
+                    <div class="user-badge" onclick="openProfileModal()" style="cursor: pointer;">
+                        <img src="${currentUser.avatar}" class="avatar">
+                        <span class="user-badge-name">${currentUser.username} ${isAdmin ? '🛡️ [Admin]' : '⚙️'}</span>
+                    </div>
+                    <button onclick="openModal('uploadModal')" class="btn-primary">+ โพสต์ภาพ</button>
+                    <button onclick="logout()" class="btn-link">ออกจากระบบ</button>
+                `;
+            } else {
+                container.innerHTML = `
+                    <button onclick="openModal('authModal')" class="btn-primary">เข้าสู่ระบบ</button>
+                `;
+            }
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function toggleAuthMode() {
+            isRegister = !isRegister;
+            document.getElementById('authTitle').innerText = isRegister ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
+            document.getElementById('authSub').innerText = isRegister ? 'สร้างบัญชีใหม่เพื่อเข้าใช้งาน' : 'กรอกบัญชีผู้ใช้งานของคุณ';
+            document.getElementById('authSubmitBtn').innerText = isRegister ? 'ยืนยันการสมัคร' : 'เข้าสู่ระบบ';
+            document.getElementById('authToggleText').innerText = isRegister ? 'มีบัญชีแล้ว?' : 'ยังไม่มีบัญชี?';
+            document.getElementById('authToggleBtn').innerText = isRegister ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก';
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('user');
+            updateAuthUI();
+            fetchFeed();
+        }
+
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const endpoint = isRegister ? '/api/register' : '/api/login';
+            const username = document.getElementById('authUsername').value.trim();
+            const password = document.getElementById('authPassword').value.trim();
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                currentUser = data.user;
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                closeModal('authModal');
+                document.getElementById('authForm').reset();
+                updateAuthUI();
+                fetchFeed();
+            } else {
+                alert(data.message);
+            }
+        });
+
+        function openProfileModal() {
+            document.getElementById('editUsername').value = currentUser.username;
+            document.getElementById('editPassword').value = '';
+            document.getElementById('editAvatarFile').value = '';
+            openModal('profileModal');
+        }
+
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const saveBtn = document.getElementById('profileSaveBtn');
+            saveBtn.innerText = 'กำลังบันทึก...';
+            saveBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('user_id', currentUser.user_id);
+            formData.append('new_username', document.getElementById('editUsername').value.trim());
+            formData.append('new_password', document.getElementById('editPassword').value.trim());
+
+            const avatarFile = document.getElementById('editAvatarFile').files[0];
+            if (avatarFile) formData.append('avatar_file', avatarFile);
+
+            try {
+                const res = await fetch('/api/profile', { method: 'PUT', body: formData });
+                const data = await res.json();
+                if (res.ok) {
+                    currentUser = data.user;
+                    localStorage.setItem('user', JSON.stringify(currentUser));
+                    alert('บันทึกข้อมูลเรียบร้อย');
+                    closeModal('profileModal');
+                    updateAuthUI();
+                    fetchFeed();
+                } else {
+                    alert(data.message || 'บันทึกข้อมูลล้มเหลว');
+                }
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+            } finally {
+                saveBtn.innerText = 'บันทึก';
+                saveBtn.disabled = false;
+            }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser) return alert('กรุณาเข้าสู่ระบบก่อน');
+
+            const fileInput = document.getElementById('uploadFileInput');
+            if (fileInput.files.length === 0) return alert('กรุณาเลือกไฟล์ภาพ');
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.innerText = 'กำลังโพสต์...';
+            submitBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('title', document.getElementById('uploadTitle').value);
+            formData.append('category', document.getElementById('uploadCategory').value);
+            formData.append('image_file', fileInput.files[0]);
+            formData.append('user_id', currentUser.user_id);
+            formData.append('author', currentUser.username);
+            formData.append('avatar', currentUser.avatar);
+
+            try {
+                const res = await fetch('/api/artworks', { method: 'POST', body: formData });
+                if (res.ok) {
+                    closeModal('uploadModal');
+                    document.getElementById('uploadForm').reset();
+                    fetchFeed();
+                } else {
+                    alert('อัปโหลดล้มเหลว');
+                }
+            } catch (err) {
+                alert('เกิดข้อผิดพลาด');
+            } finally {
+                submitBtn.innerText = 'โพสต์ผลงาน';
+                submitBtn.disabled = false;
+            }
+        });
+
+        function performSearch() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            fetchFeed(keyword, currentCategory);
+        }
+
+        function filterByCategory(category) {
+            currentCategory = category;
+            
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                if (btn.getAttribute('data-category') === category) {
+                    btn.style.background = '#6366f1';
+                    btn.style.color = 'white';
+                } else {
+                    btn.style.background = '#222';
+                    btn.style.color = '#ddd';
+                }
+            });
+
+            const keyword = document.getElementById('searchInput').value.trim();
+            fetchFeed(keyword, currentCategory);
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        async function fetchFeed(searchKeyword = '', categoryFilter = '') {
+            try {
+                let url = '/api/artworks?';
+                if (searchKeyword) {
+                    url += `search=${encodeURIComponent(searchKeyword)}&`;
+                }
+                if (currentUser) {
+                    url += `user_id=${currentUser.user_id}`;
+                }
+
+                const res = await fetch(url, { cache: 'no-store' });
+                let data = await res.json();
+
+                if (categoryFilter) {
+                    data = data.filter(item => item.category === categoryFilter);
+                }
+
+                const feed = document.getElementById('galleryFeed');
+
+                if (!data || data.length === 0) {
+                    feed.innerHTML = `<p class="empty-feed" style="text-align: center; margin-top: 40px; color: #aaa;">ไม่พบผลงานรูปภาพที่ค้นหา</p>`;
+                    return;
+                }
+
+                feed.innerHTML = data.map(item => {
+                    const isOwner = currentUser && String(currentUser.user_id) === String(item.user_id);
+                    const isAdmin = currentUser && currentUser.role === 'admin';
+                    const canDelete = isOwner || isAdmin;
+                    const likedClass = item.is_liked ? 'liked' : '';
+                    const heartIcon = item.is_liked ? '❤️' : '🤍';
+
+                    return `
+                        <div class="card" id="artwork-card-${item.artwork_id}">
+                            <div class="card-header">
+                                <div class="user-meta">
+                                    <img src="${item.avatar}" class="avatar">
+                                    <div>
+                                        <h3 class="art-title">${item.title}</h3>
+                                        <p class="art-meta">โดย <b>@${item.author}</b> • <span class="tag" style="cursor:pointer;" onclick="filterByCategory('${item.category}')">${item.category}</span></p>
+                                    </div>
+                                </div>
+                                ${canDelete ? `
+                                    <button onclick="deleteArtwork('${item.artwork_id}')" class="btn-link" style="color: #ff6b6b;">🗑️ ${isAdmin && !isOwner ? 'ลบ (Admin)' : 'ลบโพสต์'}</button>
+                                ` : ''}
+                            </div>
+                            <div class="image-container">
+                                <img src="${item.image_url}" alt="${item.title}" class="post-image">
+                            </div>
+                            <div class="card-footer">
+                                <!-- ส่วนกดไลค์และจำนวนไลค์ -->
+                                <div class="like-section">
+                                    <button onclick="toggleLike('${item.artwork_id}')" class="btn-like ${likedClass}">
+                                        <span>${heartIcon}</span> ถูกใจ <b>${item.likes_count}</b>
+                                    </button>
+                                </div>
+
+                                <div class="comments-list">
+                                    ${item.comments && item.comments.length > 0 ? item.comments.map(c => {
+                                        const isCommentOwner = currentUser && String(currentUser.user_id) === String(c.user_id);
+                                        const canDeleteComment = isCommentOwner || isAdmin;
+                                        return `
+                                        <div class="comment-row">
+                                            <span class="comment-user">@${c.username}</span>: 
+                                            <span class="comment-text">${c.text}</span>${canDeleteComment ? `
+                                                <button onclick="deleteComment('${item.artwork_id}', '${c.id}')" class="btn-link" style="font-size:10px; color:#ff6b6b; margin-left:6px;">ลบ</button>
+                                            ` : ''}
+                                        </div>
+                                        `;
+                                    }).join('') : '<p class="no-comment">ยังไม่มีความคิดเห็น</p>'}
+                                </div>
+                                ${currentUser ? `
+                                    <form onsubmit="postComment(event, '${item.artwork_id}')" class="comment-form">
+                                        <input type="text" id="comment-input-${item.artwork_id}" required placeholder="แสดงความคิดเห็นในชื่อ @${currentUser.username}..." class="comment-input">
+                                        <button type="submit" class="btn-secondary">ส่ง</button>
+                                    </form>
+                                ` : `
+                                    <p class="auth-notice">
+                                        <a href="#" onclick="openModal('authModal')" class="btn-link-white">เข้าสู่ระบบ</a> เพื่อแสดงความคิดเห็นและกดไลค์
+                                    </p>
+                                `}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // ฟังก์ชันกดไลค์ / ยกเลิกไลค์
+        async function toggleLike(artworkId) {
+            if (!currentUser) {
+                alert('กรุณาเข้าสู่ระบบก่อนกดถูกใจ');
+                openModal('authModal');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/artworks/${artworkId}/like`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUser.user_id })
+                });
+
+                if (res.ok) {
+                    const keyword = document.getElementById('searchInput').value.trim();
+                    fetchFeed(keyword, currentCategory);
+                } else {
+                    const data = await res.json();
+                    alert(data.message || 'เกิดข้อผิดพลาด');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function deleteArtwork(id) {
+            if (!confirm('ต้องการลบโพสต์นี้หรือไม่?')) return;
+
+            try {
+                const res = await fetch('/api/artworks/' + id, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUser ? currentUser.user_id : null })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    const el = document.getElementById('artwork-card-' + id);
+                    if (el) el.remove();
+                    await fetchFeed();
+                } else {
+                    alert(data.message || 'ลบโพสต์ไม่สำเร็จ');
+                }
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการลบ');
+            }
+        }
+
+        async function postComment(e, artworkId) {
+            e.preventDefault();
+            const input = document.getElementById(`comment-input-${artworkId}`);
+            const text = input.value.trim();
+            if (!text || !currentUser) return;
+
+            await fetch(`/api/artworks/${artworkId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: currentUser.username,
+                    user_id: currentUser.user_id,
+                    text
+                })
+            });
+
+            input.value = '';
+            fetchFeed();
+        }
+
+        async function deleteComment(artworkId, commentId) {
+            if (!confirm('ต้องการลบคอมเมนต์นี้หรือไม่?')) return;
+
+            try {
+                const res = await fetch(`/api/artworks/${artworkId}/comments/${commentId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUser ? currentUser.user_id : null })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    fetchFeed();
+                } else {
+                    alert(data.message || 'ลบคอมเมนต์ไม่สำเร็จ');
+                }
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการลบคอมเมนต์');
+            }
+        }
+
+        updateAuthUI();
+        fetchFeed();
+    </script>
+</body>
+</html>
