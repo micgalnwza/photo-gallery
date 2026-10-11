@@ -5,18 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Artwork & Gallery Community</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* สไตล์ปุ่มไลค์เพิ่มเติม */
+        .like-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .btn-like {
+            background: transparent;
+            border: 1px solid #444;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+        .btn-like:hover {
+            border-color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+        .btn-like.liked {
+            background: rgba(255, 107, 107, 0.2);
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+    </style>
 </head>
 <body>
 
     <header class="navbar">
-        <div class="nav-container">
+        <div class="nav-container" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 24px;">
             <div>
-                <h1 class="logo-title">ART GALLERY</h1>
-                <p class="logo-sub">ภาพวาด • การ์ตูน • แฟนอาร์ต • ภาพถ่าย</p>
+                <h1 class="logo-title" style="margin: 0;">ART GALLERY</h1>
+                <p class="logo-sub" style="margin: 2px 0 0 0; font-size: 12px; opacity: 0.8;">ภาพวาด • การ์ตูน • แฟนอาร์ต • ภาพถ่าย</p>
             </div>
-            <div id="authButtons" class="auth-box"></div>
+
+            <div id="authButtons" class="auth-box" style="display: flex; gap: 12px; align-items: center;"></div>
         </div>
     </header>
+
+    <!-- กล่องค้นหา และ แถบแยกหมวดหมู่ -->
+    <div class="search-section" style="max-width: 700px; margin: 25px auto 15px auto; padding: 0 16px; text-align: center;">
+        <div class="search-box" style="display: flex; gap: 8px; justify-content: center; margin-bottom: 15px;">
+            <input type="text" id="searchInput" placeholder="🔍 ค้นหาชื่อภาพ, ศิลปิน, หรือหมวดหมู่..." class="form-input" style="flex: 1; max-width: 450px; padding: 10px 14px; border-radius: 8px;">
+            <button type="button" onclick="performSearch()" class="btn-primary" style="padding: 10px 20px; border-radius: 8px; cursor: pointer;">ค้นหา</button>
+        </div>
+
+        <div class="category-filter-bar" style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+            <button type="button" onclick="filterByCategory('')" class="cat-btn active" data-category="" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #6366f1; color: white; cursor: pointer; font-size: 13px;">ทั้งหมด</button>
+            <button type="button" onclick="filterByCategory('รูปวาด / ภาพประกอบ')" class="cat-btn" data-category="รูปวาด / ภาพประกอบ" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #222; color: #ddd; cursor: pointer; font-size: 13px;">รูปวาด / ภาพประกอบ</button>
+            <button type="button" onclick="filterByCategory('การ์ตูน / อนิเมะ')" class="cat-btn" data-category="การ์ตูน / อนิเมะ" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #222; color: #ddd; cursor: pointer; font-size: 13px;">การ์ตูน / อนิเมะ</button>
+            <button type="button" onclick="filterByCategory('แฟนอาร์ต (Fanart)')" class="cat-btn" data-category="แฟนอาร์ต (Fanart)" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #222; color: #ddd; cursor: pointer; font-size: 13px;">แฟนอาร์ต</button>
+            <button type="button" onclick="filterByCategory('ภาพถ่ายวิว / ธรรมชาติ')" class="cat-btn" data-category="ภาพถ่ายวิว / ธรรมชาติ" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #222; color: #ddd; cursor: pointer; font-size: 13px;">ภาพถ่าย</button>
+            <button type="button" onclick="filterByCategory('ทั่วไป')" class="cat-btn" data-category="ทั่วไป" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #444; background: #222; color: #ddd; cursor: pointer; font-size: 13px;">ทั่วไป</button>
+        </div>
+    </div>
 
     <main class="main-content" id="galleryFeed"></main>
 
@@ -25,7 +74,6 @@
         <div class="modal-box modal-header-center">
             <h2 id="authTitle" class="modal-title">เข้าสู่ระบบ</h2>
             <p id="authSub" class="modal-subtitle">กรอกบัญชีผู้ใช้งานของคุณ</p>
-
 
             <form id="authForm">
                 <div class="form-group">
@@ -104,14 +152,16 @@
     <script>
         let currentUser = JSON.parse(localStorage.getItem('user')) || null;
         let isRegister = false;
+        let currentCategory = '';
 
         function updateAuthUI() {
             const container = document.getElementById('authButtons');
             if (currentUser) {
+                const isAdmin = currentUser.role === 'admin';
                 container.innerHTML = `
-                    <div class="user-badge" onclick="openProfileModal()">
+                    <div class="user-badge" onclick="openProfileModal()" style="cursor: pointer;">
                         <img src="${currentUser.avatar}" class="avatar">
-                        <span class="user-badge-name">${currentUser.username} ⚙️</span>
+                        <span class="user-badge-name">${currentUser.username} ${isAdmin ? '🛡️ [Admin]' : '⚙️'}</span>
                     </div>
                     <button onclick="openModal('uploadModal')" class="btn-primary">+ โพสต์ภาพ</button>
                     <button onclick="logout()" class="btn-link">ออกจากระบบ</button>
@@ -165,7 +215,6 @@
                 alert(data.message);
             }
         });
-
 
         function openProfileModal() {
             document.getElementById('editUsername').value = currentUser.username;
@@ -245,19 +294,64 @@
             }
         });
 
-        async function fetchFeed() {
+        function performSearch() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            fetchFeed(keyword, currentCategory);
+        }
+
+        function filterByCategory(category) {
+            currentCategory = category;
+            
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                if (btn.getAttribute('data-category') === category) {
+                    btn.style.background = '#6366f1';
+                    btn.style.color = 'white';
+                } else {
+                    btn.style.background = '#222';
+                    btn.style.color = '#ddd';
+                }
+            });
+
+            const keyword = document.getElementById('searchInput').value.trim();
+            fetchFeed(keyword, currentCategory);
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        async function fetchFeed(searchKeyword = '', categoryFilter = '') {
             try {
-                const res = await fetch('/api/artworks', { cache: 'no-store' });
-                const data = await res.json();
+                let url = '/api/artworks?';
+                if (searchKeyword) {
+                    url += `search=${encodeURIComponent(searchKeyword)}&`;
+                }
+                if (currentUser) {
+                    url += `user_id=${currentUser.user_id}`;
+                }
+
+                const res = await fetch(url, { cache: 'no-store' });
+                let data = await res.json();
+
+                if (categoryFilter) {
+                    data = data.filter(item => item.category === categoryFilter);
+                }
+
                 const feed = document.getElementById('galleryFeed');
 
                 if (!data || data.length === 0) {
-                    feed.innerHTML = `<p class="empty-feed">ยังไม่มีผลงานรูปภาพ</p>`;
+                    feed.innerHTML = `<p class="empty-feed" style="text-align: center; margin-top: 40px; color: #aaa;">ไม่พบผลงานรูปภาพที่ค้นหา</p>`;
                     return;
                 }
 
                 feed.innerHTML = data.map(item => {
                     const isOwner = currentUser && String(currentUser.user_id) === String(item.user_id);
+                    const isAdmin = currentUser && currentUser.role === 'admin';
+                    const canDelete = isOwner || isAdmin;
+                    const likedClass = item.is_liked ? 'liked' : '';
+                    const heartIcon = item.is_liked ? '❤️' : '🤍';
 
                     return `
                         <div class="card" id="artwork-card-${item.artwork_id}">
@@ -266,29 +360,36 @@
                                     <img src="${item.avatar}" class="avatar">
                                     <div>
                                         <h3 class="art-title">${item.title}</h3>
-                                        <p class="art-meta">โดย <b>@${item.author}</b> • <span class="tag">${item.category}</span></p>
+                                        <p class="art-meta">โดย <b>@${item.author}</b> • <span class="tag" style="cursor:pointer;" onclick="filterByCategory('${item.category}')">${item.category}</span></p>
                                     </div>
                                 </div>
-                                ${isOwner ? `
-                                    <button onclick="deleteArtwork('${item.artwork_id}')" class="btn-link">🗑️ ลบโพสต์</button>
+                                ${canDelete ? `
+                                    <button onclick="deleteArtwork('${item.artwork_id}')" class="btn-link" style="color: #ff6b6b;">🗑️ ${isAdmin && !isOwner ? 'ลบ (Admin)' : 'ลบโพสต์'}</button>
                                 ` : ''}
                             </div>
                             <div class="image-container">
                                 <img src="${item.image_url}" alt="${item.title}" class="post-image">
                             </div>
                             <div class="card-footer">
+                                <!-- ส่วนกดไลค์และจำนวนไลค์ -->
+                                <div class="like-section">
+                                    <button onclick="toggleLike('${item.artwork_id}')" class="btn-like ${likedClass}">
+                                        <span>${heartIcon}</span> ถูกใจ <b>${item.likes_count}</b>
+                                    </button>
+                                </div>
+
                                 <div class="comments-list">
                                     ${item.comments && item.comments.length > 0 ? item.comments.map(c => {
                                         const isCommentOwner = currentUser && String(currentUser.user_id) === String(c.user_id);
+                                        const canDeleteComment = isCommentOwner || isAdmin;
                                         return `
                                         <div class="comment-row">
                                             <span class="comment-user">@${c.username}</span>: 
-                                            <span class="comment-text">${c.text}</span>
-                                            ${isCommentOwner ? `
-                                                <button onclick="deleteComment('${item.artwork_id}', '${c.id}')" class="btn-link" style="font-size:10px;">ลบ</button>
+                                            <span class="comment-text">${c.text}</span>${canDeleteComment ? `
+                                                <button onclick="deleteComment('${item.artwork_id}', '${c.id}')" class="btn-link" style="font-size:10px; color:#ff6b6b; margin-left:6px;">ลบ</button>
                                             ` : ''}
                                         </div>
-                                    `;
+                                        `;
                                     }).join('') : '<p class="no-comment">ยังไม่มีความคิดเห็น</p>'}
                                 </div>
                                 ${currentUser ? `
@@ -298,13 +399,40 @@
                                     </form>
                                 ` : `
                                     <p class="auth-notice">
-                                        <a href="#" onclick="openModal('authModal')" class="btn-link-white">เข้าสู่ระบบ</a> เพื่อแสดงความคิดเห็น
+                                        <a href="#" onclick="openModal('authModal')" class="btn-link-white">เข้าสู่ระบบ</a> เพื่อแสดงความคิดเห็นและกดไลค์
                                     </p>
                                 `}
                             </div>
                         </div>
                     `;
                 }).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // ฟังก์ชันกดไลค์ / ยกเลิกไลค์
+        async function toggleLike(artworkId) {
+            if (!currentUser) {
+                alert('กรุณาเข้าสู่ระบบก่อนกดถูกใจ');
+                openModal('authModal');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/artworks/${artworkId}/like`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUser.user_id })
+                });
+
+                if (res.ok) {
+                    const keyword = document.getElementById('searchInput').value.trim();
+                    fetchFeed(keyword, currentCategory);
+                } else {
+                    const data = await res.json();
+                    alert(data.message || 'เกิดข้อผิดพลาด');
+                }
             } catch (err) {
                 console.error(err);
             }
